@@ -4,19 +4,24 @@
 FROM alpine:latest
 
 # Environment variables
-ENV MC_VERSION="latest" \
+ENV MC_VERSION="1.21.8" \
     PAPER_BUILD="latest" \
-    EULA="false" \
+    EULA="true" \
     MC_RAM="" \
     JAVA_OPTS=""
 
 COPY papermc.sh .
 RUN apk update \
+    && apk upgrade  \
+    && apk add --upgrade apk-tools  \
+    && apk add build-base \
     && apk add libstdc++ \
     && apk add openjdk21-jre \
     && apk add bash \
     && apk add wget \
+    && apk add curl \
     && apk add jq \
+    && apk add --no-cache udev \
     && mkdir /papermc
 
 # Start script

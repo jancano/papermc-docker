@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 
 # Enter server directory
 cd papermc
@@ -7,40 +7,45 @@ cd papermc
 : ${MC_VERSION:='latest'}
 : ${PAPER_BUILD:='latest'}
 
+PROJECT="paper"
+
 # Lowercase these to avoid 404 errors on wget
 MC_VERSION="${MC_VERSION,,}"
 PAPER_BUILD="${PAPER_BUILD,,}"
 
-# Get version information and build download URL and jar name
-URL='https://papermc.io/api/v2/projects/paper'
-if [[ $MC_VERSION == latest ]]
-then
-  # Get the latest MC version
-  MC_VERSION=$(wget -qO - "$URL" | jq -r '.versions[-1]') # "-r" is needed because the output has quotes otherwise
-fi
-URL="${URL}/versions/${MC_VERSION}"
-if [[ $PAPER_BUILD == latest ]]
-then
-  # Get the latest build
-  PAPER_BUILD=$(wget -qO - "$URL" | jq '.builds[-1]')
-fi
-JAR_NAME="paper-${MC_VERSION}-${PAPER_BUILD}.jar"
-URL="${URL}/builds/${PAPER_BUILD}/downloads/${JAR_NAME}"
+VERSION_CHECK=$(curl -s https://fill.papermc.io/v3/projects/${PROJECT}/versions/${MC_VERSION}/builds)
 
-# Update if necessary
-if [[ ! -e $JAR_NAME ]]
-then
-  # Remove old server jar(s)
-  rm -f *.jar
-  # Download new server jar
-  wget "$URL" -O "$JAR_NAME"
+# Check if the API returned an error
+if echo "$VERSION_CHECK" | jq -e '.ok == false' > /dev/null 2>&1; then
+  ERROR_MSG=$(echo "$VERSION_CHECK" | jq -r '.message // "Unknown error"')
+  echo "Error: $ERROR_MSG"
+  exit 1
+fi
+
+JAR_NAME="paper-${MC_VERSION}-${PAPER_BUILD}.jar"
+# Get the download URL directly, or null if no stable build exists
+PAPERMC_URL=$(curl -s https://fill.papermc.io/v3/projects/${PROJECT}/versions/${MC_VERSION}/builds | \
+  jq -r 'first(.[] | select(.channel == "STABLE") | .downloads."server:default".url) // "null"')
+
+if [ "$PAPERMC_URL" != "null" ]; then
+  # Download the latest Paper version
+  if [ ! -e "$JAR_NAME" ]
+  then
+    # Remove old server jar(s)
+    rm -f *.jar
+    # Download new server jar
+    curl -o "$JAR_NAME" $PAPERMC_URL
+  fi
+  echo "Download completed"
+else
+  echo "No stable build for version $MC_VERSION found :("
 fi
 
 # Update eula.txt with current setting
 echo "eula=${EULA:-false}" > eula.txt
 
 # Add RAM options to Java options if necessary
-if [[ -n $MC_RAM ]]
+if [ -n "$MC_RAM" ]
 then
   JAVA_OPTS="-Xms${MC_RAM} -Xmx${MC_RAM} $JAVA_OPTS"
 fi
