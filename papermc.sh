@@ -25,7 +25,7 @@ fi
 JAR_NAME="paper-${MC_VERSION}-${PAPER_BUILD}.jar"
 # Get the download URL directly, or null if no stable build exists
 PAPERMC_URL=$(curl -s https://fill.papermc.io/v3/projects/${PROJECT}/versions/${MC_VERSION}/builds | \
-  jq -r 'first(.[] | select(.channel == "STABLE") | .downloads."server:default".url) // "null"')
+  jq -r '(first(.[] | select(.channel == "STABLE")) // first(.[] | select(.channel == "BETA")) | .downloads."server:default".url) // "null"')
 
 if [ "$PAPERMC_URL" != "null" ]; then
   # Download the latest Paper version
